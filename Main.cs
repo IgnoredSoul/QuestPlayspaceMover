@@ -5,56 +5,34 @@ using System.Collections.Generic;
 using UnityEngine;
 #endregion
 
-namespace PlayspaceMover
+namespace QuestPlayspaceMover
 {
     public static class ModInfo
     {
-        public const string Name = "OculusPlayspaceMover";
-        public const string Description = "A SteamVR's Playspace clone for VRChat from Oculus Store";
-        public const string Author = "Rafa";
-        public const string Company = "RBX";
-        public const string Version = "1.2.0";
-        public const string DownloadLink = "https://github.com/Rafacasari/Playerspace-Mover/releases/latest/download/PlayspaceMover.dll";
+        public const string Name = "QuestPlayspaceMover";
+        public const string Description = "PlayspaceMover to oculus Quest2";
+        public const string Author = "Rafa (original for Desktop)/Solexid(fixes for quest)";
+        public const string Company = "";
+        public const string Version = "1.0.0";
+        public const string DownloadLink = "";
     }
 
     public class Main : MelonMod
     {
         #region Settings
-        private readonly string Category = "PlayspaceMover";
-        private bool Enabled = true;
-        private float Strength = 1f;
-        private float DoubleClickTime = 0.25f;
-        private bool DisableDoubleClick;
-        private bool DisableLeftHand;
-        private bool DisableRightHand;
+     
+      
         #endregion
         
         public override void OnApplicationStart()
         {
-            MelonPreferences.CreateCategory(Category, "Oculus Playspace Mover");
-            MelonPreferences.CreateEntry(Category, nameof(Enabled), Enabled, "Enabled");
-            MelonPreferences.CreateEntry(Category, nameof(Strength), Strength, "Strength");
-            MelonPreferences.CreateEntry(Category, nameof(DoubleClickTime), DoubleClickTime, "Double Click Time");
-            MelonPreferences.CreateEntry(Category, nameof(DisableDoubleClick), DisableDoubleClick, "Disable Double Click");
-            MelonPreferences.CreateEntry(Category, nameof(DisableLeftHand), DisableLeftHand, "Disable Left Hand");
-            MelonPreferences.CreateEntry(Category, nameof(DisableRightHand), DisableRightHand, "Disable Right Hand");
-
-            ApplySettings();
+  
 
             MelonCoroutines.Start(WaitInitialization());
         }
 
-        private void ApplySettings()
-        {
-            Enabled = MelonPreferences.GetEntryValue<bool>(Category, nameof(Enabled));
-            Strength = MelonPreferences.GetEntryValue<float>(Category, nameof(Strength));
-            DoubleClickTime = MelonPreferences.GetEntryValue<float>(Category, nameof(DoubleClickTime));
-            DisableDoubleClick = MelonPreferences.GetEntryValue<bool>(Category, nameof(DisableDoubleClick));
-            DisableLeftHand = MelonPreferences.GetEntryValue<bool>(Category, nameof(DisableLeftHand));
-            DisableRightHand = MelonPreferences.GetEntryValue<bool>(Category, nameof(DisableRightHand));
-        }
-
-        public override void OnPreferencesSaved() => ApplySettings();
+ 
+      
         
         private OVRCameraRig Camera;
         private OVRInput.Controller LastPressed; 
@@ -67,76 +45,98 @@ namespace PlayspaceMover
             while (VRCUiManager.prop_VRCUiManager_0 == null)
             {
                 yield return new WaitForFixedUpdate();
+                MelonLogger.Warning("-------------------------------------------------------------------------------------------------------");
             }
-            
+   
+
             var objects = Object.FindObjectsOfType(UnhollowerRuntimeLib.Il2CppType.Of<OVRCameraRig>());
+
+            MelonLogger.Warning(objects.Count);
             if (objects != null && objects.Length > 0)
             {
-                Camera = objects[0].TryCast<OVRCameraRig>();
+             
+                   Camera = objects[0].TryCast<OVRCameraRig>();
                 StartPosition = Camera.trackingSpace.localPosition;
                 yield break;
             }
-
+            OVRManager.fixedFoveatedRenderingLevel = OVRManager.FixedFoveatedRenderingLevel.High;
+            OVRManager.useDynamicFixedFoveatedRendering = true;
+            startingOffset = new Vector3(0, 0, 0);
             MelonLogger.Error("OVRCameraRig not found, this mod only work on Oculus! If u are using SteamVR, use the OVR Advanced Settings!");
         }
-
+     
         public override void OnUpdate()
         {
-            if (!Enabled || Camera == null)
+            if (Camera == null)
             {
+            
                 return;
             }
-
-            if (!DisableDoubleClick && (HasDoubleClicked(OVRInput.Button.Three, DoubleClickTime) || HasDoubleClicked(OVRInput.Button.One, DoubleClickTime)))
+           
+            if ((HasDoubleClicked(OVRInput.Button.PrimaryThumbstick, 0.25f) || HasDoubleClicked(OVRInput.Button.SecondaryThumbstick, 0.25f)))
             {
+              
                 Camera.trackingSpace.localPosition = StartPosition;
                 return;
             }
 
-            bool isLeftPressed = IsKeyJustPressed(OVRInput.Button.Three);
-            bool isRightPressed = IsKeyJustPressed(OVRInput.Button.One);
-
+            bool isLeftPressed = IsKeyJustPressed(OVRInput.Button.PrimaryThumbstick);
+            bool isRightPressed = IsKeyJustPressed(OVRInput.Button.SecondaryThumbstick);
             if (isLeftPressed || isRightPressed)
             {
-                startingOffset = OVRInput.GetLocalControllerPosition(isLeftPressed ? OVRInput.Controller.LTouch : OVRInput.Controller.RTouch);
+
+
 
                 if (isLeftPressed)
                 {
+                    startingOffset = OVRInput.GetLocalControllerPosition(OVRInput.Controller.LTouch);
+
                     LastPressed = OVRInput.Controller.LTouch;
                 }
                 else if (isRightPressed)
                 {
+                    startingOffset = OVRInput.GetLocalControllerPosition(OVRInput.Controller.RTouch);
+
                     LastPressed = OVRInput.Controller.RTouch;
                 }
             }
 
-            bool leftTrigger = OVRInput.Get(OVRInput.Button.Three, OVRInput.Controller.Touch);
-            bool rightTrigger = OVRInput.Get(OVRInput.Button.One, OVRInput.Controller.Touch);
 
-            if (leftTrigger && LastPressed == OVRInput.Controller.LTouch && !DisableLeftHand)
+
+            bool leftTrigger = OVRInput.Get(OVRInput.Button.PrimaryThumbstick, OVRInput.Controller.Touch);
+            bool rightTrigger = OVRInput.Get(OVRInput.Button.SecondaryThumbstick, OVRInput.Controller.Touch);
+
+            if (leftTrigger && LastPressed == OVRInput.Controller.LTouch )
             {
                 Vector3 currentOffset = OVRInput.GetLocalControllerPosition(OVRInput.Controller.LTouch);
-                Vector3 calculatedOffset = (currentOffset - startingOffset) * -Strength;
+                Vector3 calculatedOffset = (startingOffset * 1) -( currentOffset * 1) ;
+  
                 startingOffset = currentOffset;
                 Camera.trackingSpace.localPosition += calculatedOffset;
+               
             }
 
-            if (rightTrigger && LastPressed == OVRInput.Controller.RTouch && !DisableRightHand)
+            if (rightTrigger && LastPressed == OVRInput.Controller.RTouch )
             {
                 Vector3 currentOffset = OVRInput.GetLocalControllerPosition(OVRInput.Controller.RTouch);
-                Vector3 calculatedOffset = (currentOffset - startingOffset) * -Strength;
+                Vector3 calculatedOffset = (startingOffset * 5) - (currentOffset * 5); ;
                 startingOffset = currentOffset;
                 Camera.trackingSpace.localPosition += calculatedOffset;
+               
             }
+
+        
+           
         }
 
         private static readonly Dictionary<OVRInput.Button, bool> PreviousStates = new Dictionary<OVRInput.Button, bool>
         {
-            { OVRInput.Button.Three, false }, { OVRInput.Button.One, false }
+            { OVRInput.Button.PrimaryThumbstick, false }, { OVRInput.Button.SecondaryThumbstick, false }
         };
 
         private static bool IsKeyJustPressed(OVRInput.Button key)
         {
+       
             if (!PreviousStates.ContainsKey(key))
             {
                 PreviousStates.Add(key, false);
