@@ -1,5 +1,6 @@
-﻿#region
+#region
 using MelonLoader;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -19,115 +20,119 @@ namespace QuestPlayspaceMover
 
     public class Main : MelonMod
     {
-        #region Settings
-     
-      
-        #endregion
-        
         public override void OnApplicationStart()
         {
-  
 
-            MelonCoroutines.Start(WaitInitialization());
-        }
+            MelonCoroutines.Start(ModInit());
 
- 
-      
-        
-        private OVRCameraRig Camera;
-        private OVRInput.Controller LastPressed; 
-        private Vector3 startingOffset;
-        private Vector3 StartPosition;
-
-        private IEnumerator WaitInitialization()
-        {
-            // Wait for the VRCUiManager
-            while (VRCUiManager.prop_VRCUiManager_0 == null)
+            IEnumerator ModInit()
             {
-                yield return new WaitForFixedUpdate();
-                MelonLogger.Warning("-------------------------------------------------------------------------------------------------------");
-            }
-   
+                // Wait For UI
+                while (!VRCUiManager.field_Private_Static_VRCUiManager_0) yield return null; // Wait Till VRCUIManger Isnt Null
+                foreach (GameObject obj in Resources.FindObjectsOfTypeAll<GameObject>())
+                    if (obj.name.Contains("UserInterface"))
+                        UserInterfaceObj = obj;
 
-            var objects = Object.FindObjectsOfType(UnhollowerRuntimeLib.Il2CppType.Of<OVRCameraRig>());
+                // Wait For QM
+                while (!UserInterfaceRef.GetComponentInChildren<VRC.UI.Elements.QuickMenu>(true)) yield return null;
+                new WaitForSeconds(0.7f); // Waits to Prevent Breakage
+                MenuStart();
 
-            MelonLogger.Warning(objects.Count);
-            if (objects != null && objects.Length > 0)
-            {
-             
-                   Camera = objects[0].TryCast<OVRCameraRig>();
-                StartPosition = Camera.trackingSpace.localPosition;
+                // Init The Rest Lol
+                var objects = UnityEngine.Object.FindObjectsOfType(UnhollowerRuntimeLib.Il2CppType.Of<OVRCameraRig>());
+                MelonLogger.Warning(objects.Count);
+
+                if (objects != null && objects.Length > 0)
+                {
+                    Camera = objects[0].TryCast<OVRCameraRig>();
+                    StartPosition = Camera.trackingSpace.localPosition;
+                }
+                OVRManager.fixedFoveatedRenderingLevel = OVRManager.FixedFoveatedRenderingLevel.High;
+                OVRManager.useDynamicFixedFoveatedRendering = true;
+                startingOffset = new Vector3(0, 0, 0);
+                MelonLogger.Error("OVRCameraRig not found, this mod only work on Oculus! If u are using SteamVR, use the OVR Advanced Settings!");
+
                 yield break;
             }
-            OVRManager.fixedFoveatedRenderingLevel = OVRManager.FixedFoveatedRenderingLevel.High;
-            OVRManager.useDynamicFixedFoveatedRendering = true;
-            startingOffset = new Vector3(0, 0, 0);
-            MelonLogger.Error("OVRCameraRig not found, this mod only work on Oculus! If u are using SteamVR, use the OVR Advanced Settings!");
         }
-     
+
+        private OVRCameraRig Camera;
+        private OVRInput.Controller LastPressed;
+        private Vector3 startingOffset;
+        private Vector3 StartPosition;
+        public static GameObject UserInterfaceObj = null;
+        public int leftspeed = 5;
+        public int rightspeed = 5;
+
         public override void OnUpdate()
         {
-            if (Camera == null)
-            {
-            
-                return;
-            }
-           
+            if (!Camera) return;
+
             if ((HasDoubleClicked(OVRInput.Button.PrimaryThumbstick, 0.25f) || HasDoubleClicked(OVRInput.Button.SecondaryThumbstick, 0.25f)))
-            {
-              
-                Camera.trackingSpace.localPosition = StartPosition;
-                return;
-            }
+                Camera.trackingSpace.localPosition = StartPosition; 
 
             bool isLeftPressed = IsKeyJustPressed(OVRInput.Button.PrimaryThumbstick);
             bool isRightPressed = IsKeyJustPressed(OVRInput.Button.SecondaryThumbstick);
-            if (isLeftPressed || isRightPressed)
+            if(isLeftPressed)
             {
-
-
-
-                if (isLeftPressed)
-                {
-                    startingOffset = OVRInput.GetLocalControllerPosition(OVRInput.Controller.LTouch);
-
-                    LastPressed = OVRInput.Controller.LTouch;
-                }
-                else if (isRightPressed)
-                {
-                    startingOffset = OVRInput.GetLocalControllerPosition(OVRInput.Controller.RTouch);
-
-                    LastPressed = OVRInput.Controller.RTouch;
-                }
+                startingOffset = OVRInput.GetLocalControllerPosition(OVRInput.Controller.LTouch);
+                LastPressed = OVRInput.Controller.LTouch;
             }
-
-
+            if (isRightPressed)
+            {
+                startingOffset = OVRInput.GetLocalControllerPosition(OVRInput.Controller.LTouch);
+                LastPressed = OVRInput.Controller.LTouch;
+            }
 
             bool leftTrigger = OVRInput.Get(OVRInput.Button.PrimaryThumbstick, OVRInput.Controller.Touch);
             bool rightTrigger = OVRInput.Get(OVRInput.Button.SecondaryThumbstick, OVRInput.Controller.Touch);
-
-            if (leftTrigger && LastPressed == OVRInput.Controller.LTouch )
+            if (leftTrigger && LastPressed == OVRInput.Controller.LTouch)
             {
                 Vector3 currentOffset = OVRInput.GetLocalControllerPosition(OVRInput.Controller.LTouch);
-                Vector3 calculatedOffset = (startingOffset * 1) -( currentOffset * 1) ;
-  
+                Vector3 calculatedOffset = (startingOffset * leftspeed) - (currentOffset * leftspeed);
+
                 startingOffset = currentOffset;
                 Camera.trackingSpace.localPosition += calculatedOffset;
-               
             }
 
-            if (rightTrigger && LastPressed == OVRInput.Controller.RTouch )
+            if (rightTrigger && LastPressed == OVRInput.Controller.RTouch)
             {
                 Vector3 currentOffset = OVRInput.GetLocalControllerPosition(OVRInput.Controller.RTouch);
-                Vector3 calculatedOffset = (startingOffset * 5) - (currentOffset * 5); ;
+                Vector3 calculatedOffset = (startingOffset * rightspeed) - (currentOffset * rightspeed);
+
                 startingOffset = currentOffset;
                 Camera.trackingSpace.localPosition += calculatedOffset;
-               
             }
-
-        
-           
         }
+
+        public void MenuStart()
+        {
+            new Wings("Playspace +", "Wing_Left", () =>
+            {
+               leftspeed++;
+            });
+            new Wings("Playspace -", "Wing_Left", () =>
+            {
+               leftspeed--;
+            });
+            new Wings("Playspace Reset", "Wing_Left", () =>
+            {
+                leftspeed = 5;
+            });
+            new Wings("Playspace +", "Wing_Right", () =>
+            {
+               rightspeed++;
+            });
+            new Wings("Playspace -", "Wing_Right", () =>
+            {
+               rightspeed--;
+            });
+            new Wings("Playspace Reset", "Wing_Right", () =>
+            {
+                rightspeed = 5;
+            });
+        }
+      
 
         private static readonly Dictionary<OVRInput.Button, bool> PreviousStates = new Dictionary<OVRInput.Button, bool>
         {
@@ -138,9 +143,7 @@ namespace QuestPlayspaceMover
         {
        
             if (!PreviousStates.ContainsKey(key))
-            {
                 PreviousStates.Add(key, false);
-            }
 
             return PreviousStates[key] = OVRInput.Get(key, OVRInput.Controller.Touch) && !PreviousStates[key];
         }
@@ -152,14 +155,10 @@ namespace QuestPlayspaceMover
         public static bool HasDoubleClicked(OVRInput.Button keyCode, float threshold)
         {
             if (!OVRInput.GetDown(keyCode, OVRInput.Controller.Touch))
-            {
                 return false;
-            }
 
             if (!lastTime.ContainsKey(keyCode))
-            {
                 lastTime.Add(keyCode, Time.time);
-            }
 
             if (Time.time - lastTime[keyCode] <= threshold)
             {
@@ -169,6 +168,24 @@ namespace QuestPlayspaceMover
 
             lastTime[keyCode] = Time.time;
             return false;
+        }
+    }
+    public class Wings
+    {
+        public Wings(string name, string side, Action onClick)
+        {
+            var toinst = Main.UserInterfaceObj.transform.Find($"Canvas_QuickMenu(Clone)/CanvasGroup/Container/Window/{side}/Container/InnerContainer/WingMenu/ScrollRect/Viewport/VerticalLayoutGroup/Button_Emotes");
+            var inst = GameObject.Instantiate(toinst, toinst.parent).gameObject;
+
+            var txt = inst.transform.Find("Container/Text_QM_H3").GetComponent<TMPro.TextMeshProUGUI>();
+            txt.richText = true;
+            txt.text = $"{name}-{Random.Range(100, 99999)}";
+
+            GameObject.DestroyImmediate(inst.transform.Find("Container/Icon").gameObject);
+
+            var btn = inst.GetComponent<UnityEngine.UI.Button>();
+            btn.onClick.RemoveAllListeners();
+            btn.onClick.AddListener(new Action(onClick));
         }
     }
 }
